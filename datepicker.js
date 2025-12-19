@@ -1,0 +1,368 @@
+(() => {
+  // ===== Utilities =====
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const diffDays = (a, b) => Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
+  const sameDay = (a, b) =>
+    a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const fromISO = (s) => {
+    const [y, m, dd] = s.split("-").map(Number);
+    return new Date(y, m - 1, dd);
+  };
+  const formatHuman = (d) => d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+
+  // ===== Config defaults =====
+  const DEFAULT_CONFIG = {
+    // Booking window: arrival date must be between minDate and (minDate + maxStartAdvanceDays)
+    maxStartAdvanceDays: 270,
+
+    // Stay length
+    minNights: 2,
+    maxNights: 14,
+
+    // Blocked dates / ranges (JSON array)
+    // Supported:
+    //  - { "date": "YYYY-MM-DD", "label": "Closed" }
+    //  - { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "label": "Full booked" }  (inclusive)
+    blocked: [
+      // Your requested ranges (inclusive) — adjust years as needed:
+      { start: "2026-11-01", end: "2026-12-31", label: "Closed" },
+      { start: "2027-01-01", end: "2027-03-31", label: "Closed" },
+
+      // Examples:
+      // { date: "2026-08-15", label: "Full" },
+      // { start: "2026-07-10", end: "2026-07-17", label: "Full booked" }
+    ],
+
+    // Optional: restrict arrivals to a changeover day (0=Sun..6=Sat)
+    // changeoverDay: 5,
+  };
+
+  const normalizeConfig = (overrides = {}) => {
+    const minDateInput = overrides.minDate ?? startOfDay(new Date());
+    const minDate = startOfDay(new Date(minDateInput));
+    const blocked = Array.isArray(overrides.blocked) ? overrides.blocked : DEFAULT_CONFIG.blocked;
+
+    return {
+      minDate,
+      maxStartAdvanceDays: overrides.maxStartAdvanceDays ?? DEFAULT_CONFIG.maxStartAdvanceDays,
+      minNights: overrides.minNights ?? DEFAULT_CONFIG.minNights,
+      maxNights: overrides.maxNights ?? DEFAULT_CONFIG.maxNights,
+      blocked,
+      changeoverDay: Object.prototype.hasOwnProperty.call(overrides, "changeoverDay")
+        ? overrides.changeoverDay
+        : DEFAULT_CONFIG.changeoverDay,
+    };
+  };
+
+  // Expand blocked JSON into a Map of ISO date -> label (first label wins)
+  const buildBlockedMap = (blockedArr) => {
+    const map = new Map();
+    for (const item of blockedArr || []) {
+      const label = (item.label || "Blocked").trim();
+
+      if (item.date) {
+        if (!map.has(item.date)) map.set(item.date, label);
+        continue;
+      }
+
+      if (item.start && item.end) {
+        let d = startOfDay(fromISO(item.start));
+        const end = startOfDay(fromISO(item.end));
+        while (d <= end) {
+          const iso = toISO(d);
+          if (!map.has(iso)) map.set(iso, label);
+          d = addDays(d, 1);
+        }
+      }
+    }
+    return map;
+  };
+
+  const initLodgeDateRangePicker = (root, overrides = {}) => {
+    if (!root) return;
+
+    const CONFIG = normalizeConfig(overrides);
+    const BLOCKED = buildBlockedMap(CONFIG.blocked);
+
+    const elStart = root.querySelector("[data-ldr-start]");
+    const elEnd = root.querySelector("[data-ldr-end]");
+    const elStartISO = root.querySelector("[data-ldr-start-iso]");
+    const elEndISO = root.querySelector("[data-ldr-end-iso]");
+    const elNights = root.querySelector("[data-ldr-nights]");
+    const elMeta = root.querySelector("[data-ldr-meta]");
+    const panel = root.querySelector("[data-ldr-panel]");
+    const calwrap = root.querySelector("[data-ldr-calwrap]");
+    const title = root.querySelector("[data-ldr-title]");
+    const btnPrev = root.querySelector("[data-ldr-prev]");
+    const btnNext = root.querySelector("[data-ldr-next]");
+    const btnClear = root.querySelector("[data-ldr-clear]");
+    const btnClose = root.querySelector("[data-ldr-close]");
+
+    let viewMonth = new Date(CONFIG.minDate.getFullYear(), CONFIG.minDate.getMonth(), 1);
+    let start = null;
+    let end = null;
+
+    const maxStartDate = addDays(CONFIG.minDate, CONFIG.maxStartAdvanceDays);
+
+    // Open / close
+    const open = () => {
+      panel.hidden = false;
+      render();
+    };
+    const close = () => {
+      panel.hidden = true;
+    };
+
+    // Close on outside click
+    document.addEventListener("mousedown", (e) => {
+      if (!root.contains(e.target)) close();
+    });
+
+    elStart.addEventListener("click", open);
+    elEnd.addEventListener("click", open);
+    btnClose.addEventListener("click", close);
+
+    btnClear.addEventListener("click", () => {
+      start = null;
+      end = null;
+      syncOutputs();
+      render();
+      elStart.focus();
+    });
+
+    btnPrev.addEventListener("click", () => {
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+      render();
+    });
+
+    btnNext.addEventListener("click", () => {
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+      render();
+    });
+
+    // Rules
+    const blockedLabel = (d) => BLOCKED.get(toISO(d)) || null;
+    const isBlocked = (d) => !!blockedLabel(d);
+    const isBeforeMin = (d) => startOfDay(d) < startOfDay(CONFIG.minDate);
+    const isAfterMaxStart = (d) => startOfDay(d) > startOfDay(maxStartDate);
+    const matchesChangeover = (d) => (typeof CONFIG.changeoverDay === "number" ? d.getDay() === CONFIG.changeoverDay : true);
+
+    // Arrival must be within [minDate, maxStartDate], not blocked, and match changeover if set.
+    const isSelectableArrival = (d) => !isBeforeMin(d) && !isAfterMaxStart(d) && !isBlocked(d) && matchesChangeover(d);
+
+    const isSelectableDeparture = (d) => {
+      if (!start) return false;
+      if (isBlocked(d) || isBeforeMin(d)) return false;
+
+      const nights = diffDays(start, d);
+      if (nights < CONFIG.minNights) return false;
+      if (CONFIG.maxNights && nights > CONFIG.maxNights) return false;
+
+      // ensure NO blocked day is inside the stay (arrival date through day before departure)
+      for (let i = 0; i < nights; i++) {
+        if (isBlocked(addDays(start, i))) return false;
+      }
+      return true;
+    };
+
+    // Render helpers
+    const monthName = (d) => d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+    const buildMonth = (firstOfMonth) => {
+      const monthEl = document.createElement("div");
+      monthEl.className = "ldr__month";
+
+      const mt = document.createElement("div");
+      mt.className = "ldr__monthTitle";
+      mt.textContent = monthName(firstOfMonth);
+      monthEl.appendChild(mt);
+
+      const dow = document.createElement("div");
+      dow.className = "ldr__dow";
+      ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach((t) => {
+        const d = document.createElement("div");
+        d.textContent = t;
+        dow.appendChild(d);
+      });
+      monthEl.appendChild(dow);
+
+      const grid = document.createElement("div");
+      grid.className = "ldr__grid";
+
+      const firstDay = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), 1);
+      const lastDay = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth() + 1, 0);
+
+      const mondayIndex = (day) => (day === 0 ? 6 : day - 1);
+      const leading = mondayIndex(firstDay.getDay());
+      const totalDays = lastDay.getDate();
+
+      // prev month filler
+      const prevLast = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), 0).getDate();
+      for (let i = leading; i > 0; i--) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "ldr__day ldr__day--mute";
+        b.disabled = true;
+        b.textContent = String(prevLast - i + 1);
+        grid.appendChild(b);
+      }
+
+      // current month days
+      for (let day = 1; day <= totalDays; day++) {
+        const d = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), day);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "ldr__day";
+        b.textContent = String(day);
+
+        const today = startOfDay(new Date());
+        if (sameDay(d, today)) b.classList.add("ldr__day--today");
+
+        // Disabled logic depends on stage
+        let disabled = false;
+        if (!start) {
+          disabled = !isSelectableArrival(d);
+        } else if (start && !end) {
+          disabled = !isSelectableDeparture(d);
+        } else {
+          // completed range → allow starting new selection
+          disabled = !isSelectableArrival(d);
+        }
+        if (disabled) b.disabled = true;
+
+        // range visuals
+        if (start && sameDay(d, start)) b.classList.add("ldr__day--start");
+        if (end && sameDay(d, end)) b.classList.add("ldr__day--end");
+        if (start && end && startOfDay(d) > startOfDay(start) && startOfDay(d) < startOfDay(end)) {
+          b.classList.add("ldr__day--inrange");
+        }
+
+        // badge for blocked label (and tooltip)
+        const bl = blockedLabel(d);
+        if (bl) {
+          const badge = document.createElement("span");
+          badge.className = "ldr__badge ldr__badge--blocked";
+          badge.textContent = bl;
+          b.title = bl;
+          b.appendChild(badge);
+        } else if (!start && typeof CONFIG.changeoverDay === "number" && d.getDay() === CONFIG.changeoverDay) {
+          const badge = document.createElement("span");
+          badge.className = "ldr__badge";
+          badge.textContent = "↺";
+          b.appendChild(badge);
+        }
+
+        b.addEventListener("click", () => onPick(d));
+        grid.appendChild(b);
+      }
+
+      // trailing blanks
+      const cells = grid.children.length;
+      const trailing = (7 - (cells % 7)) % 7;
+      for (let i = 0; i < trailing; i++) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "ldr__day ldr__day--mute";
+        b.disabled = true;
+        b.textContent = "";
+        grid.appendChild(b);
+      }
+
+      monthEl.appendChild(grid);
+      return monthEl;
+    };
+
+    const onPick = (d) => {
+      d = startOfDay(d);
+
+      // Helpful message if clicking a blocked day
+      const bl = blockedLabel(d);
+
+      if (!start || (start && end)) {
+        if (!isSelectableArrival(d)) {
+          if (bl) elMeta.textContent = `That arrival date is unavailable: ${bl}.`;
+          else if (isAfterMaxStart(d)) elMeta.textContent = `Arrival must be within ${CONFIG.maxStartAdvanceDays} days.`;
+          return;
+        }
+        start = d;
+        end = null;
+      } else {
+        if (!isSelectableDeparture(d)) {
+          if (bl) elMeta.textContent = `That departure date is unavailable: ${bl}.`;
+          return;
+        }
+        end = d;
+      }
+
+      viewMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      syncOutputs();
+      render();
+    };
+
+    const syncOutputs = () => {
+      if (!start) {
+        elStart.value = "";
+        elEnd.value = "";
+        elStartISO.value = "";
+        elEndISO.value = "";
+        elNights.value = "";
+        elMeta.textContent = `Select arrival (up to ${CONFIG.maxStartAdvanceDays} days in advance).`;
+        root.dispatchEvent(new CustomEvent("ldr:change", { detail: { start: null, end: null, nights: null } }));
+        return;
+      }
+
+      elStart.value = formatHuman(start);
+      elStartISO.value = toISO(start);
+
+      if (!end) {
+        elEnd.value = "";
+        elEndISO.value = "";
+        elNights.value = "";
+        elMeta.textContent = `Select departure (${CONFIG.minNights}–${CONFIG.maxNights} nights).`;
+        root.dispatchEvent(new CustomEvent("ldr:change", { detail: { start: toISO(start), end: null, nights: null } }));
+        return;
+      }
+
+      const nights = diffDays(start, end);
+      elEnd.value = formatHuman(end);
+      elEndISO.value = toISO(end);
+      elNights.value = String(nights);
+      elMeta.textContent = `${nights} night${nights === 1 ? "" : "s"} selected.`;
+
+      root.dispatchEvent(new CustomEvent("ldr:change", { detail: { start: toISO(start), end: toISO(end), nights } }));
+    };
+
+    const render = () => {
+      const nextMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+      title.textContent = `${monthName(viewMonth)}  ·  ${monthName(nextMonth)}`;
+
+      // prevent going earlier than minDate month
+      const minMonth = new Date(CONFIG.minDate.getFullYear(), CONFIG.minDate.getMonth(), 1);
+      btnPrev.disabled = viewMonth <= minMonth;
+
+      calwrap.innerHTML = "";
+      calwrap.appendChild(buildMonth(viewMonth));
+      calwrap.appendChild(buildMonth(nextMonth));
+    };
+
+    // Pre-fill from hidden ISO fields (optional)
+    if (elStartISO.value) start = fromISO(elStartISO.value);
+    if (elEndISO.value) end = fromISO(elEndISO.value);
+
+    syncOutputs();
+  };
+
+  // Auto-init on page load for elements with [data-ldr]
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-ldr]").forEach((root) => initLodgeDateRangePicker(root));
+  });
+
+  // Expose helper for manual init if needed elsewhere
+  window.LodgeDatePicker = {
+    init: initLodgeDateRangePicker,
+    defaultConfig: DEFAULT_CONFIG,
+  };
+})();
