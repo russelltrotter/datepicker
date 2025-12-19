@@ -57,20 +57,39 @@
     };
   };
 
-  // Expand blocked JSON into a Map of ISO date -> label (first label wins)
-  const buildBlockedMap = (blockedArr) => {
-    const map = new Map();
-    for (const item of blockedArr || []) {
+  const normalizeBlockedItems = (blockedArr) =>
+    (blockedArr || []).reduce((acc, item) => {
       const label = (item.label || "Blocked").trim();
 
       if (item.date) {
-        if (!map.has(item.date)) map.set(item.date, label);
+        const date = startOfDay(fromISO(item.date));
+        acc.push({ date, dateISO: toISO(date), label });
+        return acc;
+      }
+
+      if (item.start && item.end) {
+        const start = startOfDay(fromISO(item.start));
+        const end = startOfDay(fromISO(item.end));
+        if (start <= end) acc.push({ start, end, label });
+      }
+
+      return acc;
+    }, []);
+
+  // Expand blocked JSON into a Map of ISO date -> label (first label wins)
+  const buildBlockedMap = (blockedArr) => {
+    const map = new Map();
+    for (const item of blockedArr ?? []) {
+      const label = item.label;
+
+      if (item.dateISO) {
+        if (!map.has(item.dateISO)) map.set(item.dateISO, label);
         continue;
       }
 
       if (item.start && item.end) {
-        let d = startOfDay(fromISO(item.start));
-        const end = startOfDay(fromISO(item.end));
+        let d = item.start;
+        const end = item.end;
         while (d <= end) {
           const iso = toISO(d);
           if (!map.has(iso)) map.set(iso, label);
@@ -81,11 +100,23 @@
     return map;
   };
 
+  const findRangeForDate = (ranges, date) =>
+    ranges.find((r) => r.start && r.end && startOfDay(date) >= r.start && startOfDay(date) <= r.end);
+
+  const formatRangeLabel = (start, end) => {
+    const opts = { month: "short", day: "2-digit", year: "numeric" };
+    const startText = start.toLocaleDateString(undefined, opts);
+    const endText = end.toLocaleDateString(undefined, opts);
+    return `${startText} – ${endText}`;
+  };
+
   const initLodgeDateRangePicker = (root, overrides = {}) => {
     if (!root) return;
 
     const CONFIG = normalizeConfig(overrides);
-    const BLOCKED = buildBlockedMap(CONFIG.blocked);
+    const BLOCKED_ITEMS = normalizeBlockedItems(CONFIG.blocked);
+    const BLOCKED = buildBlockedMap(BLOCKED_ITEMS);
+    const BLOCKED_RANGES = BLOCKED_ITEMS.filter((item) => item.start && item.end);
 
     const elStart = root.querySelector("[data-ldr-start]");
     const elEnd = root.querySelector("[data-ldr-end]");
@@ -191,6 +222,17 @@
 
       const grid = document.createElement("div");
       grid.className = "ldr__grid";
+      const monthStart = startOfDay(new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), 1));
+      const monthEnd = startOfDay(new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth() + 1, 0));
+
+      const bannerWrap = document.createElement("div");
+      bannerWrap.className = "ldr__banners";
+      BLOCKED_RANGES.filter((r) => !(r.end < monthStart || r.start > monthEnd)).forEach((r) => {
+        const banner = document.createElement("div");
+        banner.className = "ldr__banner";
+        banner.textContent = `${r.label}: ${formatRangeLabel(r.start, r.end)}`;
+        bannerWrap.appendChild(banner);
+      });
 
       const firstDay = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), 1);
       const lastDay = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth() + 1, 0);
@@ -242,12 +284,16 @@
 
         // badge for blocked label (and tooltip)
         const bl = blockedLabel(d);
-        if (bl) {
+        const blockedRange = findRangeForDate(BLOCKED_RANGES, d);
+
+        if (bl && !blockedRange) {
           const badge = document.createElement("span");
           badge.className = "ldr__badge ldr__badge--blocked";
           badge.textContent = bl;
           b.title = bl;
           b.appendChild(badge);
+        } else if (blockedRange) {
+          b.title = blockedRange.label;
         } else if (!start && typeof CONFIG.changeoverDay === "number" && d.getDay() === CONFIG.changeoverDay) {
           const badge = document.createElement("span");
           badge.className = "ldr__badge";
@@ -271,6 +317,7 @@
         grid.appendChild(b);
       }
 
+      if (bannerWrap.childNodes.length) monthEl.appendChild(bannerWrap);
       monthEl.appendChild(grid);
       return monthEl;
     };
