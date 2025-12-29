@@ -7,6 +7,12 @@
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* Responsive width mode - adapts to container */
+.ldr--responsive {
+  max-width: 100%;
+  width: 100%;
+}
+
 .ldr__fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -29,6 +35,11 @@
   background: #fff;
   cursor: pointer;
   font-size: 14px;
+}
+
+/* Inline mode - inputs are not clickable */
+.ldr--inline .ldr__input {
+  cursor: default;
 }
 
 .ldr__input:focus {
@@ -62,6 +73,26 @@
   background: #fff;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
   padding: 12px;
+}
+
+/* Inline mode - always visible, static positioning */
+.ldr--inline .ldr__panel {
+  position: static;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive width in inline mode */
+.ldr--inline.ldr--responsive .ldr__panel {
+  width: 100%;
+}
+
+/* Responsive width in popup mode */
+.ldr--responsive .ldr__panel {
+  width: min(720px, 100%);
+  max-width: 100%;
 }
 
 /* Reposition panel on small screens or when near viewport edges */
@@ -158,8 +189,20 @@
   padding: 6px;
 }
 
+/* Responsive calendar layout */
 @media (max-width: 640px) {
   .ldr__calwrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive width mode - adapt calendar to available space */
+.ldr--responsive .ldr__calwrap {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .ldr--responsive .ldr__calwrap {
     grid-template-columns: 1fr;
   }
 }
@@ -298,4 +341,9 @@
 .ldr__btn--ghost:focus-visible {
   outline: 2px solid rgba(0, 0, 0, 0.5);
   outline-offset: 2px;
+}
+
+/* Hide Done button in inline mode */
+.ldr--inline .ldr__btn[data-ldr-close] {
+  display: none;
 }

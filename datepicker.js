@@ -38,6 +38,13 @@
 
     // Optional: restrict arrivals to a changeover day (0=Sun..6=Sat)
     // changeoverDay: 5,
+
+    // Display mode: 'popup' (default) or 'inline' (always visible)
+    displayMode: "popup",
+
+    // Responsive width: if true, calendar adapts to container width
+    // If false or undefined, uses fixed max-width
+    responsiveWidth: false,
   };
 
   const normalizeConfig = (overrides = {}) => {
@@ -54,6 +61,8 @@
       changeoverDay: Object.prototype.hasOwnProperty.call(overrides, "changeoverDay")
         ? overrides.changeoverDay
         : DEFAULT_CONFIG.changeoverDay,
+      displayMode: overrides.displayMode ?? DEFAULT_CONFIG.displayMode,
+      responsiveWidth: overrides.responsiveWidth ?? DEFAULT_CONFIG.responsiveWidth,
     };
   };
 
@@ -113,9 +122,23 @@
 
     const maxStartDate = addDays(CONFIG.minDate, CONFIG.maxStartAdvanceDays);
 
-    // Position panel intelligently based on viewport
+    // Set display mode class on root
+    const isInline = CONFIG.displayMode === "inline";
+    if (isInline) {
+      root.classList.add("ldr--inline");
+      panel.hidden = false; // Always visible in inline mode
+    } else {
+      root.classList.add("ldr--popup");
+    }
+
+    // Set responsive width class if enabled
+    if (CONFIG.responsiveWidth) {
+      root.classList.add("ldr--responsive");
+    }
+
+    // Position panel intelligently based on viewport (only for popup mode)
     const positionPanel = () => {
-      if (panel.hidden) return;
+      if (panel.hidden || isInline) return;
 
       const rect = root.getBoundingClientRect();
       // Use estimated panel dimensions (720px width, ~400px height typical)
@@ -141,8 +164,9 @@
       }
     };
 
-    // Open / close
+    // Open / close (only for popup mode)
     const open = () => {
+      if (isInline) return; // No-op in inline mode
       panel.hidden = false;
       render();
       // Position after render so we have accurate dimensions
@@ -151,41 +175,55 @@
       });
     };
     const close = () => {
+      if (isInline) return; // No-op in inline mode
       panel.hidden = true;
     };
 
-    // Close on outside click - store handler for cleanup
+    // Close on outside click - store handler for cleanup (only for popup mode)
     const handleOutsideClick = (e) => {
-      if (!root.contains(e.target)) close();
+      if (!isInline && !root.contains(e.target)) close();
     };
-    document.addEventListener("mousedown", handleOutsideClick);
+    if (!isInline) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
 
-    // Close on Escape key
+    // Close on Escape key (only for popup mode)
     const handleEscape = (e) => {
-      if (e.key === "Escape" && !panel.hidden) {
+      if (!isInline && e.key === "Escape" && !panel.hidden) {
         close();
         elStart.focus();
       }
     };
-    document.addEventListener("keydown", handleEscape);
+    if (!isInline) {
+      document.addEventListener("keydown", handleEscape);
+    }
 
-    // Close and reposition on scroll/resize
+    // Close and reposition on scroll/resize (only for popup mode)
     const handleScroll = () => {
-      if (!panel.hidden) {
+      if (!isInline && !panel.hidden) {
         positionPanel();
       }
     };
     const handleResize = () => {
-      if (!panel.hidden) {
+      if (!isInline && !panel.hidden) {
         positionPanel();
       }
     };
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleResize);
+    if (!isInline) {
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleResize);
+    }
 
-    elStart.addEventListener("click", open);
-    elEnd.addEventListener("click", open);
-    btnClose.addEventListener("click", close);
+    // Only add click handlers for popup mode
+    if (!isInline) {
+      elStart.addEventListener("click", open);
+      elEnd.addEventListener("click", open);
+      btnClose.addEventListener("click", close);
+    } else {
+      // In inline mode, inputs are still readonly but not clickable for opening
+      elStart.style.cursor = "default";
+      elEnd.style.cursor = "default";
+    }
 
     btnClear.addEventListener("click", () => {
       start = null;
@@ -434,8 +472,8 @@
       calwrap.appendChild(buildMonth(viewMonth));
       calwrap.appendChild(buildMonth(nextMonth));
 
-      // Reposition panel after render if open
-      if (!panel.hidden) {
+      // Reposition panel after render if open (only for popup mode)
+      if (!isInline && !panel.hidden) {
         requestAnimationFrame(() => {
           positionPanel();
         });
@@ -466,6 +504,11 @@
     }
 
     syncOutputs();
+    
+    // Initial render for inline mode
+    if (isInline) {
+      render();
+    }
   };
 
   // Auto-init on page load for elements with [data-ldr]

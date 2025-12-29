@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lodge Date Range Picker (Inline Mode)</title>
+  <link rel="stylesheet" href="datepicker.css" />
+  <script defer src="datepicker.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .example {
+      margin-bottom: 40px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Lodge Date Range Picker Examples</h1>
+
+  <!-- Example 1: Default Popup Mode -->
+  <div class="example">
+    <h2>Default Popup Mode</h2>
+    <div class="ldr" data-ldr>
+      <div class="ldr__fields">
+        <label class="ldr__field">
+          <span>Arrival</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-start />
+        </label>
+
+        <label class="ldr__field">
+          <span>Departure</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-end />
+        </label>
+
+        <div class="ldr__meta" data-ldr-meta aria-live="polite"></div>
+
+        <input type="hidden" name="arrival" data-ldr-start-iso />
+        <input type="hidden" name="departure" data-ldr-end-iso />
+        <input type="hidden" name="nights" data-ldr-nights />
+      </div>
+
+      <div class="ldr__panel" data-ldr-panel hidden>
+        <div class="ldr__header">
+          <button type="button" class="ldr__nav" data-ldr-prev aria-label="Previous month">‹</button>
+          <div class="ldr__title" data-ldr-title></div>
+          <button type="button" class="ldr__nav" data-ldr-next aria-label="Next month">›</button>
+        </div>
+
+        <div class="ldr__calwrap" data-ldr-calwrap></div>
+
+        <div class="ldr__actions">
+          <button type="button" class="ldr__btn ldr__btn--ghost" data-ldr-clear>Clear</button>
+          <button type="button" class="ldr__btn" data-ldr-close>Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 2: Inline Mode (Always Visible) -->
+  <div class="example">
+    <h2>Inline Mode (Always Visible)</h2>
+    <div class="ldr" data-ldr>
+      <div class="ldr__fields">
+        <label class="ldr__field">
+          <span>Arrival</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-start />
+        </label>
+
+        <label class="ldr__field">
+          <span>Departure</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-end />
+        </label>
+
+        <div class="ldr__meta" data-ldr-meta aria-live="polite"></div>
+
+        <input type="hidden" name="arrival2" data-ldr-start-iso />
+        <input type="hidden" name="departure2" data-ldr-end-iso />
+        <input type="hidden" name="nights2" data-ldr-nights />
+      </div>
+
+      <div class="ldr__panel" data-ldr-panel hidden>
+        <div class="ldr__header">
+          <button type="button" class="ldr__nav" data-ldr-prev aria-label="Previous month">‹</button>
+          <div class="ldr__title" data-ldr-title></div>
+          <button type="button" class="ldr__nav" data-ldr-next aria-label="Next month">›</button>
+        </div>
+
+        <div class="ldr__calwrap" data-ldr-calwrap></div>
+
+        <div class="ldr__actions">
+          <button type="button" class="ldr__btn ldr__btn--ghost" data-ldr-clear>Clear</button>
+          <button type="button" class="ldr__btn" data-ldr-close>Done</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Initialize with inline mode
+      document.addEventListener("DOMContentLoaded", () => {
+        const inlinePicker = document.querySelectorAll("[data-ldr]")[1];
+        if (inlinePicker) {
+          window.LodgeDatePicker.init(inlinePicker, {
+            displayMode: "inline"
+          });
+        }
+      });
+    </script>
+  </div>
+
+  <!-- Example 3: Inline Mode with Responsive Width -->
+  <div class="example">
+    <h2>Inline Mode with Responsive Width</h2>
+    <div class="ldr" data-ldr>
+      <div class="ldr__fields">
+        <label class="ldr__field">
+          <span>Arrival</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-start />
+        </label>
+
+        <label class="ldr__field">
+          <span>Departure</span>
+          <input class="ldr__input" type="text" inputmode="none" readonly placeholder="Select date" data-ldr-end />
+        </label>
+
+        <div class="ldr__meta" data-ldr-meta aria-live="polite"></div>
+
+        <input type="hidden" name="arrival3" data-ldr-start-iso />
+        <input type="hidden" name="departure3" data-ldr-end-iso />
+        <input type="hidden" name="nights3" data-ldr-nights />
+      </div>
+
+      <div class="ldr__panel" data-ldr-panel hidden>
+        <div class="ldr__header">
+          <button type="button" class="ldr__nav" data-ldr-prev aria-label="Previous month">‹</button>
+          <div class="ldr__title" data-ldr-title></div>
+          <button type="button" class="ldr__nav" data-ldr-next aria-label="Next month">›</button>
+        </div>
+
+        <div class="ldr__calwrap" data-ldr-calwrap></div>
+
+        <div class="ldr__actions">
+          <button type="button" class="ldr__btn ldr__btn--ghost" data-ldr-clear>Clear</button>
+          <button type="button" class="ldr__btn" data-ldr-close>Done</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Initialize with inline mode and responsive width
+      document.addEventListener("DOMContentLoaded", () => {
+        const responsivePicker = document.querySelectorAll("[data-ldr]")[2];
+        if (responsivePicker) {
+          window.LodgeDatePicker.init(responsivePicker, {
+            displayMode: "inline",
+            responsiveWidth: true
+          });
+        }
+      });
+    </script>
+  </div>
+</body>
+</html>
+
