@@ -27,6 +27,9 @@
 <body>
   <h1>Lodge Date Range Picker Examples</h1>
 
+ 
+
+
   <!-- Example 1: Default Popup Mode -->
   <div class="example">
     <h2>Default Popup Mode</h2>
@@ -69,7 +72,7 @@
   <!-- Example 2: Inline Mode (Always Visible) -->
   <div class="example">
     <h2>Inline Mode (Always Visible)</h2>
-    <div class="ldr" data-ldr>
+    <div class="ldr" data-ldr data-ldr-no-auto>
       <div class="ldr__fields">
         <label class="ldr__field">
           <span>Arrival</span>
@@ -104,22 +107,26 @@
       </div>
     </div>
     <script>
-      // Initialize with inline mode
-      document.addEventListener("DOMContentLoaded", () => {
-        const inlinePicker = document.querySelectorAll("[data-ldr]")[1];
-        if (inlinePicker) {
-          window.LodgeDatePicker.init(inlinePicker, {
-            displayMode: "inline"
-          });
+      // Initialize with inline mode - wait for main script to load
+      (function initInlinePicker() {
+        if (window.LodgeDatePicker && window.LodgeDatePicker.init) {
+          const inlinePicker = document.querySelector("[data-ldr-no-auto]");
+          if (inlinePicker && !inlinePicker.hasAttribute("data-ldr-initialized")) {
+            window.LodgeDatePicker.init(inlinePicker, {
+              displayMode: "inline"
+            });
+          }
+        } else {
+          setTimeout(initInlinePicker, 50);
         }
-      });
+      })();
     </script>
   </div>
 
   <!-- Example 3: Inline Mode with Responsive Width -->
   <div class="example">
     <h2>Inline Mode with Responsive Width</h2>
-    <div class="ldr" data-ldr>
+    <div class="ldr" data-ldr data-ldr-no-auto>
       <div class="ldr__fields">
         <label class="ldr__field">
           <span>Arrival</span>
@@ -154,16 +161,21 @@
       </div>
     </div>
     <script>
-      // Initialize with inline mode and responsive width
-      document.addEventListener("DOMContentLoaded", () => {
-        const responsivePicker = document.querySelectorAll("[data-ldr]")[2];
-        if (responsivePicker) {
-          window.LodgeDatePicker.init(responsivePicker, {
-            displayMode: "inline",
-            responsiveWidth: true
-          });
+      // Initialize with inline mode and responsive width - wait for main script to load
+      (function initResponsivePicker() {
+        if (window.LodgeDatePicker && window.LodgeDatePicker.init) {
+          const responsivePickers = document.querySelectorAll("[data-ldr-no-auto]");
+          const responsivePicker = responsivePickers[responsivePickers.length - 1];
+          if (responsivePicker && !responsivePicker.hasAttribute("data-ldr-initialized")) {
+            window.LodgeDatePicker.init(responsivePicker, {
+              displayMode: "inline",
+              responsiveWidth: true
+            });
+          }
+        } else {
+          setTimeout(initResponsivePicker, 50);
         }
-      });
+      })();
     </script>
   </div>
 </body>

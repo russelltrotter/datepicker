@@ -92,6 +92,20 @@
 
   const initLodgeDateRangePicker = (root, overrides = {}) => {
     if (!root) return;
+    
+    // Prevent double auto-initialization (when no overrides provided)
+    // Manual initialization (with overrides) is always allowed
+    const isManualInit = Object.keys(overrides).length > 0;
+    if (!isManualInit && root.hasAttribute("data-ldr-initialized")) {
+      return;
+    }
+    
+    // For manual init on already-initialized element, remove the flag to allow re-init
+    if (isManualInit && root.hasAttribute("data-ldr-initialized")) {
+      root.removeAttribute("data-ldr-initialized");
+    }
+    
+    root.setAttribute("data-ldr-initialized", "true");
 
     const CONFIG = normalizeConfig(overrides);
     const BLOCKED = buildBlockedMap(CONFIG.blocked);
@@ -511,9 +525,11 @@
     }
   };
 
-  // Auto-init on page load for elements with [data-ldr]
+  // Auto-init on page load for elements with [data-ldr] but not [data-ldr-no-auto]
   document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("[data-ldr]").forEach((root) => initLodgeDateRangePicker(root));
+    document.querySelectorAll("[data-ldr]:not([data-ldr-no-auto])").forEach((root) => {
+      initLodgeDateRangePicker(root);
+    });
   });
 
   // Expose helper for manual init if needed elsewhere
