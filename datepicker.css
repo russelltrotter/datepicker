@@ -1,10 +1,6 @@
 /* ===============================
    Lodge Date Range Picker styles
    =============================== */
-body {
-  padding: 24px;
-}
-
 .ldr {
   position: relative;
   max-width: 520px;
@@ -41,6 +37,11 @@ body {
   box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.06);
 }
 
+.ldr__input:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.5);
+  outline-offset: 2px;
+}
+
 .ldr__meta {
   grid-column: 1 / -1;
   font-size: 13px;
@@ -54,12 +55,59 @@ body {
   left: 0;
   top: calc(100% + 10px);
   z-index: 9999;
-  width: min(720px, 96vw);
+  width: min(720px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
   padding: 12px;
+}
+
+/* Reposition panel on small screens or when near viewport edges */
+@media (max-width: 720px) {
+  .ldr__panel {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* Adjust panel if it would overflow right edge */
+.ldr__panel[data-position="right"] {
+  left: auto;
+  right: 0;
+}
+
+@media (max-width: 720px) {
+  .ldr__panel[data-position="right"] {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
+
+/* Adjust panel if it would overflow bottom edge */
+.ldr__panel[data-position="top"] {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+/* Adjust panel if it would overflow both right and bottom */
+.ldr__panel[data-position="right-top"] {
+  left: auto;
+  right: 0;
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+@media (max-width: 720px) {
+  .ldr__panel[data-position="right-top"] {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
 }
 
 .ldr__header {
@@ -91,6 +139,11 @@ body {
 
 .ldr__nav:hover {
   background: rgba(0, 0, 0, 0.03);
+}
+
+.ldr__nav:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.5);
+  outline-offset: 2px;
 }
 
 .ldr__nav:disabled {
@@ -156,8 +209,13 @@ body {
   position: relative;
 }
 
-.ldr__day:hover {
+.ldr__day:hover:not([disabled]) {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.ldr__day:focus-visible:not([disabled]) {
+  outline: 2px solid rgba(0, 0, 0, 0.5);
+  outline-offset: 2px;
 }
 
 .ldr__day[disabled] {
@@ -227,7 +285,17 @@ body {
   font-weight: 650;
 }
 
+.ldr__btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
 .ldr__btn--ghost {
   background: #fff;
   color: #111;
+}
+
+.ldr__btn--ghost:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.5);
+  outline-offset: 2px;
 }

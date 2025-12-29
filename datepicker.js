@@ -101,25 +101,87 @@
     const btnClear = root.querySelector("[data-ldr-clear]");
     const btnClose = root.querySelector("[data-ldr-close]");
 
+    // Validate required elements exist
+    if (!elStart || !elEnd || !elStartISO || !elEndISO || !elNights || !elMeta || !panel || !calwrap || !title || !btnPrev || !btnNext || !btnClear || !btnClose) {
+      console.error("LodgeDatePicker: Missing required DOM elements");
+      return;
+    }
+
     let viewMonth = new Date(CONFIG.minDate.getFullYear(), CONFIG.minDate.getMonth(), 1);
     let start = null;
     let end = null;
 
     const maxStartDate = addDays(CONFIG.minDate, CONFIG.maxStartAdvanceDays);
 
+    // Position panel intelligently based on viewport
+    const positionPanel = () => {
+      if (panel.hidden) return;
+
+      const rect = root.getBoundingClientRect();
+      // Use estimated panel dimensions (720px width, ~400px height typical)
+      const estimatedPanelWidth = Math.min(720, window.innerWidth - 24);
+      const estimatedPanelHeight = 400;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 12;
+
+      // Reset positioning
+      panel.removeAttribute("data-position");
+
+      const wouldOverflowRight = rect.left + estimatedPanelWidth > viewportWidth - margin;
+      const wouldOverflowBottom = rect.bottom + estimatedPanelHeight > viewportHeight - margin;
+
+      // Set positioning attribute
+      if (wouldOverflowRight && wouldOverflowBottom) {
+        panel.setAttribute("data-position", "right-top");
+      } else if (wouldOverflowRight) {
+        panel.setAttribute("data-position", "right");
+      } else if (wouldOverflowBottom) {
+        panel.setAttribute("data-position", "top");
+      }
+    };
+
     // Open / close
     const open = () => {
       panel.hidden = false;
       render();
+      // Position after render so we have accurate dimensions
+      requestAnimationFrame(() => {
+        positionPanel();
+      });
     };
     const close = () => {
       panel.hidden = true;
     };
 
-    // Close on outside click
-    document.addEventListener("mousedown", (e) => {
+    // Close on outside click - store handler for cleanup
+    const handleOutsideClick = (e) => {
       if (!root.contains(e.target)) close();
-    });
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    // Close on Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && !panel.hidden) {
+        close();
+        elStart.focus();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    // Close and reposition on scroll/resize
+    const handleScroll = () => {
+      if (!panel.hidden) {
+        positionPanel();
+      }
+    };
+    const handleResize = () => {
+      if (!panel.hidden) {
+        positionPanel();
+      }
+    };
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
 
     elStart.addEventListener("click", open);
     elEnd.addEventListener("click", open);
@@ -155,6 +217,7 @@
 
     const isSelectableDeparture = (d) => {
       if (!start) return false;
+      // Departure must be after start (nights >= 1), so isBeforeMin check is redundant but kept for safety
       if (isBlocked(d) || isBeforeMin(d)) return false;
 
       const nights = diffDays(start, d);
@@ -166,6 +229,24 @@
         if (isBlocked(addDays(start, i))) return false;
       }
       return true;
+    };
+
+    // Helper to get departure validation error message
+    const getDepartureError = (d) => {
+      if (!start) return null;
+      const bl = blockedLabel(d);
+      if (bl) return `That departure date is unavailable: ${bl}.`;
+      if (isBeforeMin(d)) return `Departure must be on or after ${formatHuman(CONFIG.minDate)}.`;
+      const nights = diffDays(start, d);
+      if (nights < CONFIG.minNights) return `Stay must be at least ${CONFIG.minNights} night${CONFIG.minNights === 1 ? "" : "s"}.`;
+      if (CONFIG.maxNights && nights > CONFIG.maxNights) return `Stay cannot exceed ${CONFIG.maxNights} night${CONFIG.maxNights === 1 ? "" : "s"}.`;
+      // Check for blocked days in range
+      for (let i = 0; i < nights; i++) {
+        const dayInRange = addDays(start, i);
+        const blockedInRange = blockedLabel(dayInRange);
+        if (blockedInRange) return `Stay includes unavailable date: ${formatHuman(dayInRange)} (${blockedInRange}).`;
+      }
+      return null;
     };
 
     // Render helpers
@@ -291,7 +372,8 @@
         end = null;
       } else {
         if (!isSelectableDeparture(d)) {
-          if (bl) elMeta.textContent = `That departure date is unavailable: ${bl}.`;
+          const errorMsg = getDepartureError(d);
+          if (errorMsg) elMeta.textContent = errorMsg;
           return;
         }
         end = d;
@@ -343,14 +425,45 @@
       const minMonth = new Date(CONFIG.minDate.getFullYear(), CONFIG.minDate.getMonth(), 1);
       btnPrev.disabled = viewMonth <= minMonth;
 
+      // prevent going beyond maxStartDate month
+      const maxMonth = new Date(maxStartDate.getFullYear(), maxStartDate.getMonth(), 1);
+      const maxViewMonth = new Date(maxMonth.getFullYear(), maxMonth.getMonth() - 1, 1); // Can view one month before max
+      btnNext.disabled = viewMonth >= maxViewMonth;
+
       calwrap.innerHTML = "";
       calwrap.appendChild(buildMonth(viewMonth));
       calwrap.appendChild(buildMonth(nextMonth));
+
+      // Reposition panel after render if open
+      if (!panel.hidden) {
+        requestAnimationFrame(() => {
+          positionPanel();
+        });
+      }
     };
 
-    // Pre-fill from hidden ISO fields (optional)
-    if (elStartISO.value) start = fromISO(elStartISO.value);
-    if (elEndISO.value) end = fromISO(elEndISO.value);
+    // Pre-fill from hidden ISO fields (optional) - validate against config
+    if (elStartISO.value) {
+      const preStart = fromISO(elStartISO.value);
+      if (isSelectableArrival(preStart)) {
+        start = preStart;
+      } else {
+        // Invalid pre-filled date, clear it
+        elStartISO.value = "";
+      }
+    }
+    if (elEndISO.value && start) {
+      const preEnd = fromISO(elEndISO.value);
+      if (isSelectableDeparture(preEnd)) {
+        end = preEnd;
+      } else {
+        // Invalid pre-filled date, clear it
+        elEndISO.value = "";
+      }
+    } else if (elEndISO.value && !start) {
+      // End date without start date is invalid
+      elEndISO.value = "";
+    }
 
     syncOutputs();
   };
