@@ -1,0 +1,233 @@
+/* ===============================
+   Lodge Date Range Picker styles
+   =============================== */
+body {
+  padding: 24px;
+}
+
+.ldr {
+  position: relative;
+  max-width: 520px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.ldr__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.ldr__field span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 0 0 6px;
+}
+
+.ldr__input {
+  width: 100%;
+  padding: 12px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.ldr__input:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.ldr__meta {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  opacity: 0.85;
+  min-height: 18px;
+  padding-left: 2px;
+}
+
+.ldr__panel {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  z-index: 9999;
+  width: min(720px, 96vw);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
+  padding: 12px;
+}
+
+.ldr__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 10px;
+}
+
+.ldr__title {
+  font-weight: 650;
+  font-size: 14px;
+  opacity: 0.9;
+  text-align: center;
+  flex: 1;
+}
+
+.ldr__nav {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ldr__nav:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.ldr__nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ldr__calwrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 6px;
+}
+
+@media (max-width: 640px) {
+  .ldr__calwrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ldr__month {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.ldr__monthTitle {
+  font-size: 13px;
+  font-weight: 650;
+  opacity: 0.85;
+  margin: 0 0 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.ldr__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ldr__dow div {
+  font-size: 11px;
+  opacity: 0.55;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.ldr__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.ldr__day {
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  position: relative;
+}
+
+.ldr__day:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.ldr__day[disabled] {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.ldr__day--mute {
+  opacity: 0.35;
+}
+
+.ldr__day--today {
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.ldr__day--start,
+.ldr__day--end {
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+}
+
+.ldr__day--inrange {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.ldr__badge {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-size: 9px;
+  opacity: 0.75;
+}
+
+/* Blocked label badge */
+.ldr__badge--blocked {
+  left: 6px;
+  right: auto;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 10px;
+  line-height: 1;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.ldr__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 6px 4px;
+}
+
+.ldr__btn {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ldr__btn--ghost {
+  background: #fff;
+  color: #111;
+}
